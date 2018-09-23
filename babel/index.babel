@@ -1,0 +1,116 @@
+// Get data
+const MOVIES_FILE = "https://cdn.rawgit.com/freeCodeCamp/testable-projects-fcc/a80ce8f9/src/data/tree_map/movie-data.json";
+
+d3.json(MOVIES_FILE, function(error, data) {
+	if (error) throw error;
+	var root = d3.hierarchy(data)
+		.sum(d => d.value)
+		.sort(function(a, b) {return b.height - a.height || b.value - a.value;});	
+
+	// Define color constant
+	const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+	// Set the dimensions of the canvas / graph
+	const w = 1000;
+	const h = 600;
+	const margin = 150;
+	const marginLeft = 50;
+	const marginBottom = 50;
+
+	const svg = d3.select("body")
+		.append("svg")
+		.attr("width", w + margin + marginLeft)
+		.attr("height", h + margin + marginBottom)
+		.append("g")
+		.attr('class', "graph")
+    .attr("transform", "translate(" + marginLeft + "," + margin + ")");
+	
+	// Define treemap constant
+	const treemap = d3.treemap().size([w, h]).tile(d3.treemapSquarify);
+	treemap(root);
+	
+	// Add title and description
+	svg.append("text")
+		.attr("id", "title")
+		.attr("x", (w/2))
+    .attr("text-anchor", "middle")
+		.attr("y", -60)
+		.text("Movie Sales")
+		.style("font-size", "45px");
+	
+	svg.append("text")
+		.attr("id", "description")
+		.attr("x", (w/2))
+    .attr("text-anchor", "middle")
+		.attr("y", -25)
+		.html("Top Most Sold Movies Grouped by Category")
+		.style("font-size", "18px");
+	
+	// Define tooltip
+	const tooltip = d3.select("body")
+    .append("div")
+    .style("visibility", "hidden")
+    .attr("id", "tooltip");
+	
+	// Add rects and tooltip
+	var cell = svg.selectAll("g")
+    .data(root.leaves())
+    .enter().append("g")
+    .attr("transform", d => "translate(" + d.x0 + "," + d.y0 + ")");
+
+  cell.append("rect")
+      .attr("width", (d) => (d.x1 - d.x0 - 0.5))
+      .attr("height", (d) => (d.y1 - d.y0 - 0.5))
+      .attr("class", "tile")
+      .attr("data-name", (d) => d.data.name)
+      .attr("data-category", (d) => d.data.category)
+      .attr("data-value", (d) => d.data.value)
+      .style("fill",  (d) =>  color(d.data.category))
+			.on("mouseover", function(d) {
+				tooltip.style("visibility", "visible")
+					.attr("data-value", d3.select(this).attr("data-value"))
+					.html(d.data.name + "</br>Category: " + d.data.category + "</br>Value: " + d.data.value)
+					.style("left", (d3.event.pageX + 10) + "px")		
+        	.style("top", (d3.event.pageY) + "px");
+				})
+			.on("mouseout", function(){return tooltip.style("visibility", "hidden")});
+	
+	cell.append("text")
+    .selectAll("tspan")
+    .data((d) => d.data.name.split(/(?=[A-Z][^A-Z])/g))
+    .enter()
+    .append("tspan")
+    .attr("x", 5)
+    .attr("y", (d, i) => 14 + i * 10)
+    .text((d) => d)
+		.style("font-size", "11px")
+		.style('fill', 'white');
+	
+	// Add legend
+	const legend = svg.selectAll(".legend")
+		.data(color.domain().reverse())
+		.enter()
+		.append("g")
+		.attr("id", "legend")
+		.attr("transform", function(d, i) {
+      return "translate(50," + (h/15 - i * 20) + ")";
+    });
+	
+	legend.append("rect")
+		.attr("class", "legend-item")
+		.attr("x", w - 30)
+		.attr("y", 80)
+    .attr("width", 18)
+    .attr("height", 18)
+    .style("fill", color);
+	
+	legend.append("text")
+    .attr("x", w - 10)
+    .attr("y", 88)
+    .attr("dy", ".35em")
+    .style("text-anchor", "start")
+    .text(function(d) {
+      return d;
+    });
+	
+});
